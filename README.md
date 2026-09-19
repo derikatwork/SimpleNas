@@ -80,7 +80,17 @@ Write it to a USB stick (⚠ target the USB device, not a data disk):
 sudo dd if=result/iso/simplenas-installer.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
-Boot the NAS from that USB and run:
+**Don't want to build it yourself?** GitHub Actions builds the ISO for you
+(`.github/workflows/build-iso.yml`):
+- Every push to `main` (or a manual **Run workflow**) uploads the ISO under the
+  run's **Artifacts** → `simplenas-installer-iso`.
+- Pushing a tag like `v1.0` publishes a **Release** with the ISO attached (a
+  stable download link): `git tag v1.0 && git push origin v1.0`.
+
+The live ISO boots into a **labwc (Wayland) desktop** and auto-opens a terminal;
+run the installer from there (or via the right-click menu → *Run installer*).
+If the GPU can't do Wayland, switch to a text console with **Ctrl+Alt+F2** and
+run the same command. Boot the NAS from the USB and run:
 
 ```
 sudo install-simplenas

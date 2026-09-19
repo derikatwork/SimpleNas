@@ -155,6 +155,59 @@ in
   # Flakes available in the live env (needed for nixos-install --flake).
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # ── Graphical live environment: labwc (Wayland) ─────────────────────────────
+  # The live ISO boots into labwc and auto-opens a terminal with the installer
+  # command, so the whole thing is graphical. If the GPU can't do Wayland, a text
+  # console is still available on Ctrl+Alt+F2 — run `sudo install-simplenas` there.
+  programs.labwc.enable = true;
+  hardware.graphics.enable = true;
+  security.polkit.enable = true;
+  services.dbus.enable = true;
+
+  # Auto-login the live "nixos" user straight into labwc via greetd.
+  services.greetd = {
+    enable = true;
+    settings = {
+      initial_session = { command = "labwc"; user = "nixos"; };
+      default_session = { command = "labwc"; user = "nixos"; };
+    };
+  };
+  # greetd owns tty1; drop the installer CD's console auto-login there to avoid a
+  # VT clash. Other VTs keep a normal (passwordless) login as a fallback.
+  services.getty.autologinUser = lib.mkForce null;
+
+  # Minimal labwc config so the session is usable out of the box:
+  #  - autostart opens a terminal with the installer hint + sets a background
+  #  - Super+Return opens a terminal; right-click shows a small menu
+  environment.etc."xdg/labwc/autostart".text = ''
+    swaybg -c '#1b2530' &
+    foot -- bash -lc 'echo; echo "  Run the installer with:  sudo install-simplenas"; echo; exec bash' &
+  '';
+  environment.etc."xdg/labwc/rc.xml".text = ''
+    <?xml version="1.0"?>
+    <labwc_config>
+      <keyboard>
+        <keybind key="W-Return"><action name="Execute" command="foot" /></keybind>
+        <keybind key="A-F4"><action name="Close" /></keybind>
+      </keyboard>
+    </labwc_config>
+  '';
+  environment.etc."xdg/labwc/menu.xml".text = ''
+    <?xml version="1.0"?>
+    <openbox_menu>
+      <menu id="root-menu" label="SimpleNAS">
+        <item label="Terminal"><action name="Execute" command="foot" /></item>
+        <item label="Run installer"><action name="Execute" command="foot -- sudo install-simplenas" /></item>
+        <item label="App launcher"><action name="Execute" command="fuzzel" /></item>
+        <separator />
+        <item label="Reboot"><action name="Execute" command="systemctl reboot" /></item>
+        <item label="Power off"><action name="Execute" command="systemctl poweroff" /></item>
+        <separator />
+        <item label="Exit labwc"><action name="Exit" /></item>
+      </menu>
+    </openbox_menu>
+  '';
+
   # Bake this whole repo into the ISO so the config is present on the target.
   # (Package builds during `nixos-install` still fetch from the internet — the
   # live env uses DHCP, so plug in a network cable during install.)
@@ -166,6 +219,8 @@ in
     git nano vim
     gptfdisk parted
     pciutils usbutils smartmontools
+    # Wayland/labwc live desktop bits:
+    foot fuzzel swaybg wl-clipboard
   ];
 
   # Point the user at the installer on login.

@@ -1,0 +1,67 @@
+name: Build installer ISO
+
+# Produces a downloadable SimpleNAS installer ISO.
+#  - Every push to main (and manual runs) upload the ISO as a workflow ARTIFACT
+#    (Actions run -> Artifacts -> simplenas-installer-iso).
+#  - Pushing a tag like v1.0 additionally publishes a GitHub RELEASE with the
+#    ISO attached, giving a stable download link.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+# Avoid piling up concurrent ISO builds.
+concurrency:
+  group: build-iso-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # needed to publish a release on tag builds
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ISO builds need lots of disk; free up the runner first.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Install Nix (flakes enabled)
+        uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Build the ISO
+        run: nix build .#iso -L
+
+      - name: Collect the ISO
+        run: |
+          mkdir -p out
+          cp -L result/iso/*.iso out/
+          ls -lh out
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simplenas-installer-iso
+          path: out/*.iso
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.iso
+          generate_release_notes: true
