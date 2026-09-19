@@ -18,16 +18,21 @@
   ];
 
   # ── Identity ────────────────────────────────────────────────────────────────
-  # Change these to taste. hostName must match the attr name in flake.nix.
+  # Deliberately NOT "truenas". Change to taste; hostName must match the attr
+  # name in flake.nix (rename both together if you change it).
   networking.hostName = "simplenas";
 
   # Required by ZFS: a unique 8-hex-digit id. Generated for this build; keep it
   # unique per machine. Regenerate with: head -c4 /dev/urandom | od -A none -t x4
   networking.hostId = "5af23065";
 
+  # ── Hardware: CPU ─────────────────────────────────────────────────────────────
+  # Intel Xeon E5640 -> load Intel CPU microcode updates.
+  hardware.cpu.intel.updateMicrocode = true;
+
   # ── Locale / time ───────────────────────────────────────────────────────────
-  # TODO: set your timezone, e.g. "America/New_York", "Europe/London", "UTC".
-  time.timeZone = "America/New_York";
+  # US Pacific.
+  time.timeZone = "America/Los_Angeles";
   i18n.defaultLocale = "en_US.UTF-8";
 
   # The release you first installed with. Do NOT change this on an existing

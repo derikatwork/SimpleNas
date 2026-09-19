@@ -1,34 +1,37 @@
 { config, pkgs, lib, ... }:
 
-# ZFS support + maintenance. This module enables ZFS and sets up automatic
-# scrubbing, snapshots, and TRIM. It does NOT create your pool — you create the
-# pool by hand once during install (see the recipe at the bottom), and NixOS
-# imports it on every boot.
+# ZFS support + maintenance for a DROP-IN migration from TrueNAS SCALE.
+#
+# The existing pool "divine-storm" is IMPORTED as-is (no data is created or
+# destroyed here). ZFS locates pool members by on-disk labels, so it does not
+# matter that Linux may rename the disks (sda/sdc/sdd/sde under TrueNAS).
 
 {
   boot.supportedFilesystems.zfs = true;
 
-  # Don't force-import pools that weren't cleanly exported (safer default; avoids
-  # importing a pool that another machine might still own).
+  # Don't force-import a pool that another system might still own. See the
+  # migration note below about exporting the pool from TrueNAS first.
   boot.zfs.forceImportRoot = false;
 
-  # Import the data pool at boot even though it isn't listed in
-  # hardware-configuration.nix's fileSystems (ZFS manages its own mountpoints).
-  # Rename "tank" if you named your pool something else.
-  boot.zfs.extraPools = [ "tank" ];
+  # Import the existing data pool at boot. Its datasets mount at the mountpoints
+  # stored in the pool itself (TrueNAS SCALE stores these under /mnt, e.g.
+  # /mnt/divine-storm/...), so shares and paths line up without extra config.
+  boot.zfs.extraPools = [ "divine-storm" ];
 
-  # Weekly scrub to catch and repair silent corruption. RAIDZ1 can self-heal
-  # from one bad drive as long as scrubs run regularly.
+  # Weekly scrub to catch/repair bit-rot (replaces TrueNAS's scrub task).
   services.zfs.autoScrub = {
     enable = true;
     interval = "weekly";
   };
 
-  # Periodic TRIM for SSDs (no-op / harmless on spinning disks).
+  # Periodic TRIM (no-op on spinning disks).
   services.zfs.trim.enable = true;
 
-  # Automatic snapshots. Datasets opt in with the `com.sun:auto-snapshot`
-  # property (see recipe). Adjust retention to taste.
+  # Automatic snapshots for any dataset with `com.sun:auto-snapshot=true`.
+  # NOTE: your existing TrueNAS snapshots are part of the pool and import with
+  # it, untouched. TrueNAS's *scheduled* snapshot tasks do NOT carry over; to
+  # have NixOS take over snapshotting a dataset, tag it once, e.g.:
+  #   zfs set com.sun:auto-snapshot=true divine-storm/<dataset>
   services.zfs.autoSnapshot = {
     enable = true;
     frequent = 4;   # every 15 min, keep 4
@@ -38,42 +41,30 @@
     monthly = 3;
   };
 
-  # ── One-time pool creation (RAIDZ1) ─────────────────────────────────────────
-  # Run this ONCE during install, from the installer shell, BEFORE the first
-  # `nixos-install`. Do it after partitioning your boot disk but you can create
-  # the data pool on whole, dedicated disks.
+  # ── Migrating the pool from TrueNAS SCALE (do this once) ─────────────────────
+  # 1. On the TrueNAS box, stop SMB/NFS/apps, then cleanly export the pool:
+  #        zpool export divine-storm
+  #    (or just shut TrueNAS down gracefully). This releases TrueNAS's hostid
+  #    claim so NixOS can import without a forced override.
   #
-  # 1. Identify your disks by stable id (never /dev/sdX — those names shuffle):
-  #      ls -l /dev/disk/by-id/
+  # 2. Install NixOS onto the BOOT disk only (the old TrueNAS boot device).
+  #    DO NOT touch the four pool disks. Identify disks by stable id first:
+  #        ls -l /dev/disk/by-id/
+  #        lsblk -o NAME,SIZE,MODEL,SERIAL
   #
-  # 2. Create a RAIDZ1 pool named "tank" across 3+ disks. Example with 3 disks:
+  # 3. Boot NixOS. `boot.zfs.extraPools` imports "divine-storm" automatically.
+  #    Verify:
+  #        zpool status divine-storm
+  #        zfs list -o name,mountpoint
   #
-  #      zpool create -f \
-  #        -o ashift=12 \
-  #        -O compression=zstd \
-  #        -O atime=off \
-  #        -O xattr=sa -O acltype=posixacl \
-  #        -O mountpoint=none \
-  #        tank raidz1 \
-  #          /dev/disk/by-id/DISK-1 \
-  #          /dev/disk/by-id/DISK-2 \
-  #          /dev/disk/by-id/DISK-3
+  #    If the pool was NOT cleanly exported, the first import fails with an
+  #    "owned by another system" error. Import once by hand, then reboot:
+  #        zpool import -f divine-storm
   #
-  # 3. Create datasets for your shares and enable auto-snapshots on them:
+  #    If datasets land at unexpected paths, check/adjust the stored mountpoint:
+  #        zfs get mountpoint divine-storm
   #
-  #      zfs create -o mountpoint=/srv/data -o "com.sun:auto-snapshot=true" tank/data
-  #      zfs create -o mountpoint=/srv/media -o "com.sun:auto-snapshot=true" tank/media
-  #
-  #    After this, `boot.zfs.extraPools = [ "tank" ]` above re-imports it on boot.
-  #
-  # ── Native encryption (optional) ────────────────────────────────────────────
-  # This build leaves the pool UNENCRYPTED so the NAS can reboot unattended
-  # (no passphrase prompt). To encrypt instead, add these to `zpool create`:
-  #
-  #        -O encryption=aes-256-gcm \
-  #        -O keyformat=passphrase \
-  #        -O keylocation=prompt \
-  #
-  # You'll then be prompted for the passphrase at boot (or point keylocation at a
-  # keyfile on the boot disk / a USB key for semi-unattended boots).
+  # ── Encryption ───────────────────────────────────────────────────────────────
+  # Your pool is unencrypted, so nothing extra is needed. (If you ever add
+  # native ZFS encryption, you'd load the key at boot via a small service.)
 }

@@ -13,8 +13,7 @@ in
     isNormalUser = true;
     description = "SimpleNAS primary user";
     extraGroups = [
-      "wheel"           # sudo
-      "networkmanager"  # manage networking
+      "wheel"   # sudo
     ];
     shell = pkgs.bash;
 

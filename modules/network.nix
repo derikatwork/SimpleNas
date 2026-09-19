@@ -1,54 +1,65 @@
 { config, pkgs, lib, ... }:
 
-# Networking: DHCP via NetworkManager, Tailscale (with Tailscale SSH), and a
-# firewall that trusts the tailnet.
+# Networking: a static LAN address (reproducing the old NAS), Tailscale with
+# Tailscale SSH, and a firewall that trusts the tailnet.
 
+let
+  # ⚠ TODO: set these to your two wired NIC names. They are NOT known ahead of
+  # time and are NOT the TrueNAS "sdX" naming. Find them on the installed system:
+  #   ip -o link      (look for "en..." / "eth..." devices, e.g. eno1, eno2)
+  # If a name here is wrong, that interface's static IP won't apply (DHCP
+  # fallback below). Map each name to the correct IP once you know which is which.
+  nic1 = "eno1";   # -> 192.168.0.222
+  nic2 = "eno2";   # -> 192.168.0.228
+in
 {
-  # Simple, reliable networking. NetworkManager handles wired + wireless.
-  networking.networkmanager.enable = true;
+  # Static IPv4 on both NICs, mirroring the previous NAS.
+  networking.useDHCP = false;
+  networking.interfaces.${nic1}.ipv4.addresses = [
+    { address = "192.168.0.222"; prefixLength = 24; }
+  ];
+  networking.interfaces.${nic2}.ipv4.addresses = [
+    { address = "192.168.0.228"; prefixLength = 24; }
+  ];
+  # ⚠ TODO: confirm these match your network (192.168.0.1 is the common default).
+  networking.defaultGateway = "192.168.0.1";
+  networking.nameservers = [ "192.168.0.1" "1.1.1.1" ];
+
+  # NOTE: both NICs are on the same 192.168.0.0/24 subnet (as on the old box).
+  # That works, but two interfaces on one subnet can cause ARP/return-path
+  # quirks. If you don't actually need two addresses, drop nic2 and just use
+  # nic1, or bond them. `checkReversePath = "loose"` below keeps this tolerant.
+
+  # ── DHCP fallback ────────────────────────────────────────────────────────────
+  # Unsure of interface names, or want the router to assign addresses? Comment
+  # out the static block above and use:
+  #   networking.useDHCP = true;
+  # (then set DHCP reservations on your router to keep the addresses stable).
 
   # ── Tailscale ───────────────────────────────────────────────────────────────
   services.tailscale = {
     enable = true;
-
-    # Tailscale SSH: authenticate SSH over the tailnet via Tailscale ACLs,
-    # so you don't manage keys/passwords for remote login. After first boot run:
-    #   sudo tailscale up --ssh
-    # (or just `sudo tailscale up` and enable SSH in the admin console).
+    # Tailscale SSH: SSH auth over the tailnet via Tailscale ACLs. After first
+    # boot, authenticate once with:  sudo tailscale up --ssh
     extraUpFlags = [ "--ssh" ];
-
-    # `both` opens the firewall for Tailscale and, when this node is a
-    # subnet-router/exit-node, enables IP forwarding. Harmless otherwise.
     useRoutingFeatures = "both";
-
-    # ── Subnet router / exit node (optional; not enabled by default) ──────────
-    # To advertise your LAN or act as a VPN exit node, run on the box:
-    #   sudo tailscale up --ssh --advertise-routes=192.168.1.0/24
-    #   sudo tailscale up --ssh --advertise-exit-node
-    # then approve the routes in the Tailscale admin console.
+    # Subnet router / exit node are opt-in at `tailscale up` time; see README.
   };
 
   # ── Firewall ────────────────────────────────────────────────────────────────
   networking.firewall = {
     enable = true;
-
-    # Trust anything arriving over the Tailscale interface. This is what lets
-    # Tailscale SSH (and any tailnet-only services) work without poking
-    # individual ports in the LAN firewall.
+    # Trust the tailnet interface so Tailscale SSH and tailnet-only services work
+    # without opening LAN ports.
     trustedInterfaces = [ "tailscale0" ];
-
-    # Recommended by Tailscale for smoother NAT traversal.
     checkReversePath = "loose";
-
-    # No LAN ports opened by default — access is via Tailscale.
-    # If you enable Samba/NFS in modules/nas.nix and want them on the LAN,
-    # open the relevant ports there.
+    # No LAN ports opened by default (shares are Tailscale-only for now). When you
+    # enable Samba/NFS in modules/nas.nix, open their ports there.
     allowedTCPPorts = [ ];
     allowedUDPPorts = [ ];
   };
 
-  # Regular SSH daemon (keys only). Useful as a fallback / for LAN access.
-  # Tailscale SSH does not require this, but it's a sane safety net.
+  # Regular SSH (keys only) as a LAN fallback alongside Tailscale SSH.
   services.openssh = {
     enable = true;
     settings = {

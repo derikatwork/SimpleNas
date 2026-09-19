@@ -24,18 +24,19 @@
   # boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "nvme" "usbhid" "sd_mod" ];
   # boot.kernelModules = [ "kvm-intel" ];
   #
+  # This machine boots in LEGACY BIOS mode, so there is normally NO EFI /boot
+  # vfat partition — just a root filesystem on the boot disk (sdb on TrueNAS,
+  # but confirm by-id). The "divine-storm" ZFS pool is imported by modules/zfs.nix
+  # and must NOT be listed here.
+  #
   # fileSystems."/" = {
-  #   device = "rpool/root";   # or a labelled ext4/btrfs root, etc.
-  #   fsType = "zfs";
+  #   device = "/dev/disk/by-uuid/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";  # boot-disk root (e.g. ext4)
+  #   fsType = "ext4";
   # };
   #
-  # fileSystems."/boot" = {
-  #   device = "/dev/disk/by-uuid/XXXX-XXXX";
-  #   fsType = "vfat";
-  #   options = [ "fmask=0077" "dmask=0077" ];
-  # };
-  #
-  # swapDevices = [ ];
+  # swapDevices = [
+  #   # { device = "/dev/disk/by-uuid/XXXX..."; }   # optional swap partition
+  # ];
 
   boot.initrd.availableKernelModules = [ ];
   boot.kernelModules = [ ];
