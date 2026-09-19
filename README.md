@@ -46,8 +46,9 @@ modules/
 - **GRUB boot disk** in `modules/boot.nix`: set `boot.loader.grub.device` to the
   boot SSD's **`/dev/disk/by-id/...`** path (was `sdb` on TrueNAS, but confirm —
   Linux may enumerate disks differently).
-- **NIC names** in `modules/network.nix`: set `nic1`/`nic2` to your real
-  interface names (`ip -o link`) and confirm the **gateway/DNS** (assumed
+- **NIC names** in `modules/network.nix`: set `accessNic` (192.168.0.222) and
+  `mgmtNic` (192.168.0.228) to your real interface names (`ip -o link`), confirm
+  which physical port is which, and confirm the **gateway/DNS** (assumed
   `192.168.0.1`).
 - **Username / password / SSH keys** in `modules/users.nix` (default user is
   `nas` with password `changeme` — change it!). If you rename the user, also

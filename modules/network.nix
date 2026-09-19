@@ -4,31 +4,36 @@
 # Tailscale SSH, and a firewall that trusts the tailnet.
 
 let
-  # ⚠ TODO: set these to your two wired NIC names. They are NOT known ahead of
+  # Two NICs, mirroring the previous NAS:
+  #   access  -> 192.168.0.222  (primary; carries the default route + services)
+  #   mgmt    -> 192.168.0.228  (management)
+  # ⚠ TODO: set these to your real interface names. They are NOT known ahead of
   # time and are NOT the TrueNAS "sdX" naming. Find them on the installed system:
   #   ip -o link      (look for "en..." / "eth..." devices, e.g. eno1, eno2)
-  # If a name here is wrong, that interface's static IP won't apply (DHCP
-  # fallback below). Map each name to the correct IP once you know which is which.
-  nic1 = "eno1";   # -> 192.168.0.222
-  nic2 = "eno2";   # -> 192.168.0.228
+  # If a name here is wrong, that interface's static IP won't apply. Confirm
+  # which physical port is access vs management and map accordingly.
+  accessNic = "eno1";   # -> 192.168.0.222
+  mgmtNic   = "eno2";   # -> 192.168.0.228
 in
 {
-  # Static IPv4 on both NICs, mirroring the previous NAS.
+  # Static IPv4 on both NICs.
   networking.useDHCP = false;
-  networking.interfaces.${nic1}.ipv4.addresses = [
+  networking.interfaces.${accessNic}.ipv4.addresses = [
     { address = "192.168.0.222"; prefixLength = 24; }
   ];
-  networking.interfaces.${nic2}.ipv4.addresses = [
+  networking.interfaces.${mgmtNic}.ipv4.addresses = [
     { address = "192.168.0.228"; prefixLength = 24; }
   ];
-  # ⚠ TODO: confirm these match your network (192.168.0.1 is the common default).
-  networking.defaultGateway = "192.168.0.1";
+
+  # Pin the default route to the ACCESS NIC so outbound traffic is deterministic
+  # on this multi-homed host (both NICs share the 192.168.0.0/24 subnet).
+  # ⚠ TODO: confirm the gateway/DNS (192.168.0.1 is the common default).
+  networking.defaultGateway = { address = "192.168.0.1"; interface = accessNic; };
   networking.nameservers = [ "192.168.0.1" "1.1.1.1" ];
 
-  # NOTE: both NICs are on the same 192.168.0.0/24 subnet (as on the old box).
-  # That works, but two interfaces on one subnet can cause ARP/return-path
-  # quirks. If you don't actually need two addresses, drop nic2 and just use
-  # nic1, or bond them. `checkReversePath = "loose"` below keeps this tolerant.
+  # NOTE: both NICs on one subnet is fine here — `checkReversePath = "loose"`
+  # below keeps replies to the management IP working despite the single default
+  # route (Linux rp_filter would otherwise drop asymmetric return traffic).
 
   # ── DHCP fallback ────────────────────────────────────────────────────────────
   # Unsure of interface names, or want the router to assign addresses? Comment
