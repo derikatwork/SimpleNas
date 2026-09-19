@@ -41,6 +41,8 @@ modules/
   nas.nix                              # Samba + NFS (both commented out)
   flatpak.nix                          # Flatpak + Flathub remote (auto-registered)
   auto-upgrade.nix                     # weekly security auto-updates (Fri 02:00)
+iso/
+  configuration.nix                    # bootable live ISO + guided installer
 ```
 
 ## Before you deploy — things to set
@@ -62,7 +64,42 @@ modules/
 Already set for you: hostname `simplenas`, timezone `America/Los_Angeles`,
 Intel Xeon microcode, pool name `divine-storm`.
 
-## Migration / install (from TrueNAS SCALE)
+## Option A: build a bootable installer ISO (easiest)
+
+Instead of the manual steps below, you can build a live USB image that carries
+this repo and a **guided installer**. Build it on any machine with Nix (it needs
+internet and a few GB; it can't be built on the NAS itself before NixOS is on it):
+
+```
+nix build .#iso          # -> result/iso/simplenas-installer.iso
+```
+
+Write it to a USB stick (⚠ target the USB device, not a data disk):
+
+```
+sudo dd if=result/iso/simplenas-installer.iso of=/dev/sdX bs=4M status=progress oflag=sync
+```
+
+Boot the NAS from that USB and run:
+
+```
+sudo install-simplenas
+```
+
+The guided installer:
+- lists disks by stable id and **flags ZFS-member disks**, then makes you type
+  the boot disk's id and confirm with `ERASE` — it **refuses to write to any disk
+  that holds a ZFS pool**, so `divine-storm` is protected;
+- partitions **only** that boot disk (BIOS layout), installs the config, and
+  **auto-fills the GRUB device** for you;
+- offers to open `network.nix` so you can fix the NIC names before first boot;
+- sets the `nas` password at the end.
+
+Still do **`zpool export divine-storm`** on the old box first, and plug in a
+network cable (the installer downloads packages). After reboot, verify with
+`zpool status divine-storm`. Prefer to do it by hand? Use Option B.
+
+## Option B: manual migration / install (from TrueNAS SCALE)
 
 1. **On the TrueNAS box:** stop SMB/NFS/apps, then cleanly export the pool so
    NixOS can import it without a forced host-ID override:
