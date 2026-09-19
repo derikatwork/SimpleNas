@@ -15,6 +15,7 @@
     ../../modules/desktop.nix
     ../../modules/users.nix
     ../../modules/nas.nix
+    ../../modules/flatpak.nix
     ../../modules/auto-upgrade.nix
   ];
 

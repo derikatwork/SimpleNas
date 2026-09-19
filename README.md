@@ -15,6 +15,7 @@ adds a lightweight labwc (Wayland) desktop plus Tailscale for remote admin.
 | Networking    | **Static**, dual-NIC (`192.168.0.222` + `.228`/24) + **Tailscale SSH**    |
 | File sharing  | SMB + NFS supported but **commented out**; access via Tailscale for now    |
 | Desktop       | Wayland + **labwc** compositor, **auto-login** via greetd                  |
+| Apps          | **Flatpak** enabled with the **Flathub** remote pre-registered             |
 | Shell / editor| **Bash** (default) + **Nano**                                             |
 | Updates       | **Weekly auto-upgrade**, Fri 02:00, from pinned `nixos-25.11` backports    |
 | Services      | Minimal — NAS + Tailscale + desktop only                                  |
@@ -38,6 +39,7 @@ modules/
   desktop.nix                          # labwc (Wayland) + greetd auto-login
   users.nix                            # primary user account
   nas.nix                              # Samba + NFS (both commented out)
+  flatpak.nix                          # Flatpak + Flathub remote (auto-registered)
   auto-upgrade.nix                     # weekly security auto-updates (Fri 02:00)
 ```
 
@@ -135,6 +137,22 @@ Intel Xeon microcode, pool name `divine-storm`.
 - **A weekly upgrade broke something:** roll back (see above). The running system
   is never replaced until a new build succeeds, so a failed build is a no-op.
 - **Boot disk filled up:** `sudo nix-collect-garbage -d` then rebuild.
+
+## Installing apps (Flatpak)
+
+Flatpak is enabled and the **Flathub** remote is registered automatically at
+boot — no setup needed. From a terminal on the box:
+
+```
+flatpak install flathub org.videolan.VLC      # install (system-wide; uses polkit)
+flatpak run org.videolan.VLC
+flatpak update                                 # update all installed Flatpaks
+flatpak list                                   # see what's installed
+```
+
+Browse apps at <https://flathub.org>. Prefer per-user installs? Add the remote
+once with `flatpak --user remote-add --if-not-exists flathub
+https://flathub.org/repo/flathub.flatpakrepo`, then `flatpak --user install …`.
 
 ## Turning on LAN file sharing later
 
