@@ -12,18 +12,23 @@
   system.autoUpgrade = {
     enable = true;
 
-    # Rebuild from this flake. Points at the GitHub repo so the box pulls the
-    # committed config; `--update-input nixpkgs` then bumps nixpkgs to the latest
-    # nixos-25.11 revision at build time (that's where the security backports
-    # land). To upgrade to a NEW release later, change the branch in flake.nix.
+    # Rebuild from the LOCAL checkout of this repo at /etc/nixos. Local is the
+    # robust default: it needs no network credentials, so it works even if your
+    # GitHub repo is PRIVATE (fetching a private flake from github would fail on a
+    # headless box). `--update-input nixpkgs` then bumps nixpkgs to the latest
+    # nixos-25.11 revision at build time — that's where the security backports land.
     #
-    # Prefer a local checkout instead? Set:
-    #   flake = "/etc/nixos";   # (a git clone of this repo)
-    flake = "github:derikatwork/SimpleNas#simplenas";
+    # This requires /etc/nixos to be a git clone of this repo (the install steps
+    # put it there). Edits to existing tracked files are picked up automatically;
+    # if you ADD a new file, `git add` it or nix won't see it.
+    #
+    # Public repo and prefer pulling from GitHub instead? Use:
+    #   flake = "github:derikatwork/SimpleNas#simplenas";
+    flake = "/etc/nixos#simplenas";
 
     flags = [
       "--update-input" "nixpkgs"   # pull latest nixos-25.11 (security backports)
-      "--no-write-lock-file"       # source is immutable (fetched), don't write lock
+      "--no-write-lock-file"       # don't rewrite/commit flake.lock from the timer
       "-L"                         # verbose build logs in the journal
     ];
 

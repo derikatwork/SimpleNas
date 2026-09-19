@@ -9,8 +9,12 @@
 # which writes /mnt/etc/nixos/hardware-configuration.nix. Copy that file over
 # this one (keep the filename/location), then build.
 #
-# The stub below only exists so `nix flake check` can evaluate the config
-# before you have real hardware. It intentionally defines no filesystems.
+# This stub defines NO root filesystem on purpose — it's a guardrail. Until you
+# replace it with the generated file, `nixos-install` / `nixos-rebuild` (and
+# `nix flake check`) will stop with a clear error like:
+#   "The 'fileSystems' option does not specify your root file system."
+# That's expected: it means "go run nixos-generate-config first", not that the
+# config is broken. Run `nix flake check` AFTER you've copied the real file in.
 { config, lib, pkgs, modulesPath, ... }:
 
 {

@@ -45,9 +45,17 @@
     hdparm
   ];
 
-  # Monitor drive health in the background and email/log SMART warnings.
+  # Monitor drive health in the background and log SMART warnings to the journal.
   services.smartd = {
     enable = true;
     autodetect = true;
   };
+
+  # Compressed RAM swap. No disk partition needed; gives the box headroom so a
+  # memory spike (ZFS ARC + services) doesn't OOM-kill processes on old hardware.
+  zramSwap.enable = true;
+
+  # Keep clocks correct (needed for the scheduled auto-upgrade, TLS, logs).
+  # Enabled by default on NixOS, but stated explicitly so it's obvious.
+  services.timesyncd.enable = true;
 }

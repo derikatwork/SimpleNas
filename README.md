@@ -76,15 +76,20 @@ Intel Xeon microcode, pool name `divine-storm`.
    ```
 3. Partition + format **only the boot disk** (BIOS: a small BIOS-boot/GRUB setup
    + a root filesystem — no EFI partition needed), and mount root at `/mnt`.
-4. Generate hardware config, then drop this repo in and copy the result over the
-   placeholder:
+4. Generate hardware config, then clone this repo to `/mnt/etc/nixos` and copy
+   the generated file over the placeholder:
    ```
-   nixos-generate-config --root /mnt
+   nixos-generate-config --root /mnt      # writes /mnt/etc/nixos/hardware-configuration.nix
+   git clone <this repo> /mnt/etc/nixos   # keep the generated hardware-configuration.nix
    ```
+   (Run `nixos-generate-config` while the pool is **not** imported so it doesn't
+   add `divine-storm` entries — in a fresh installer it isn't imported.)
 5. Make the edits under **Before you deploy** (GRUB `by-id` device, NIC names,
-   user/password), then validate and install:
+   user/password). Then validate and install (the installer needs flakes enabled):
    ```
-   nix flake check
+   export NIX_CONFIG="experimental-features = nix-command flakes"
+   cd /mnt/etc/nixos
+   nix flake check                        # only passes once the real hardware file is in place
    nixos-install --flake /mnt/etc/nixos#simplenas
    ```
 6. Reboot. Verify the pool imported and mounted:
@@ -99,14 +104,37 @@ Intel Xeon microcode, pool name `divine-storm`.
    sudo tailscale up --ssh
    ```
 
+> Keep your edited config at **`/etc/nixos`** (that's what the weekly
+> auto-upgrade rebuilds from). Edit files there and `nixos-rebuild switch`;
+> if you *add* a new `.nix` file, `git add` it or Nix won't see it.
+
 ## Day-2 operations
 
-- **Rebuild after edits:** `sudo nixos-rebuild switch --flake .#simplenas`
-- **Update packages:** `nix flake update` then rebuild.
+- **Rebuild after edits:** `sudo nixos-rebuild switch --flake /etc/nixos#simplenas`
+- **Roll back a bad change:** `sudo nixos-rebuild switch --rollback`, or pick an
+  older "NixOS" entry in the GRUB boot menu. Every rebuild keeps the previous one.
+- **Update packages now:** the weekly job does this automatically; to force it:
+  `sudo systemctl start nixos-upgrade.service`
 - **Check pool health:** `zpool status`, `zpool list`
 - **Snapshots:** `zfs list -t snapshot`. To let NixOS auto-snapshot a dataset:
   `zfs set com.sun:auto-snapshot=true divine-storm/<dataset>`.
 - **Drive health:** `smartctl -a /dev/disk/by-id/...` (smartd runs in background).
+
+## If something goes wrong (recovery)
+
+- **No network after first boot** (wrong NIC name in `modules/network.nix`):
+  log in at the monitor/keyboard or a text console (Ctrl+Alt+F2), run
+  `ip -o link` to get the real interface names, fix `accessNic`/`mgmtNic`, then
+  `sudo nixos-rebuild switch --flake /etc/nixos#simplenas`. (Temporary net now:
+  `sudo dhcpcd <iface>`.)
+- **Pool didn't mount:** `sudo zpool import -f divine-storm` then reboot; check
+  `zpool status`. Your data is on the pool disks and is not touched by a reinstall.
+- **Desktop won't start** (old GPU): the NAS still works — use SSH/Tailscale or a
+  text console. To go headless, remove `../../modules/desktop.nix` from the
+  imports in `hosts/simplenas/configuration.nix` and rebuild.
+- **A weekly upgrade broke something:** roll back (see above). The running system
+  is never replaced until a new build succeeds, so a failed build is a no-op.
+- **Boot disk filled up:** `sudo nix-collect-garbage -d` then rebuild.
 
 ## Turning on LAN file sharing later
 

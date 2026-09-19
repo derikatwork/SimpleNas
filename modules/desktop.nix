@@ -6,6 +6,11 @@
 # NOTE: NixOS removed the original Blackbox window-manager module (Blackbox has
 # been unmaintained upstream since ~2005). labwc gives the same lightweight,
 # right-click-menu feel on a modern Wayland stack.
+#
+# The desktop is NON-ESSENTIAL to the NAS. On old server GPUs (ASPEED/Matrox),
+# Wayland/labwc may not start; if so the box is still fully functional — reach it
+# via SSH/Tailscale or a text console (Ctrl+Alt+F2). To run fully headless,
+# remove this module from configuration.nix's imports and rebuild.
 
 let
   # Must match the account in modules/users.nix.
