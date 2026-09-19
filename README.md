@@ -16,6 +16,7 @@ adds a lightweight labwc (Wayland) desktop plus Tailscale for remote admin.
 | File sharing  | SMB + NFS supported but **commented out**; access via Tailscale for now    |
 | Desktop       | Wayland + **labwc** compositor, **auto-login** via greetd                  |
 | Shell / editor| **Bash** (default) + **Nano**                                             |
+| Updates       | **Weekly auto-upgrade**, Fri 02:00, from pinned `nixos-25.11` backports    |
 | Services      | Minimal — NAS + Tailscale + desktop only                                  |
 
 > Migrating **from TrueNAS SCALE**: the pool is imported, not recreated. Your
@@ -37,6 +38,7 @@ modules/
   desktop.nix                          # labwc (Wayland) + greetd auto-login
   users.nix                            # primary user account
   nas.nix                              # Samba + NFS (both commented out)
+  auto-upgrade.nix                     # weekly security auto-updates (Fri 02:00)
 ```
 
 ## Before you deploy — things to set
