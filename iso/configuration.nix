@@ -165,11 +165,13 @@ in
   services.dbus.enable = true;
 
   # Auto-login the live "nixos" user straight into labwc via greetd.
+  # WLR_RENDERER=pixman (software rendering) lets labwc start on server/BMC GPUs
+  # that lack GL/EGL; it works fine on normal GPUs too (just not accelerated).
   services.greetd = {
     enable = true;
     settings = {
-      initial_session = { command = "labwc"; user = "nixos"; };
-      default_session = { command = "labwc"; user = "nixos"; };
+      initial_session = { command = "env WLR_RENDERER=pixman labwc"; user = "nixos"; };
+      default_session = { command = "env WLR_RENDERER=pixman labwc"; user = "nixos"; };
     };
   };
   # greetd owns tty1; drop the installer CD's console auto-login there to avoid a

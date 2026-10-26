@@ -9,7 +9,7 @@ adds a lightweight labwc (Wayland) desktop plus Tailscale for remote admin.
 
 | Area          | Choice                                                                    |
 |---------------|---------------------------------------------------------------------------|
-| Config format | **Flakes** (`nixos-25.11`, pinned via `flake.lock`)                        |
+| Config format | **Flakes** (`nixos-25.11`; pin with `flake.lock` — see below)              |
 | Bootloader    | **Legacy BIOS + GRUB** (matches current firmware; UEFI alt documented)    |
 | Storage       | **Imports existing ZFS pool `divine-storm`** (unencrypted); scrub + snaps |
 | Networking    | **Static**, dual-NIC (`192.168.0.222` + `.228`/24) + **Tailscale SSH**    |
@@ -56,9 +56,14 @@ iso/
   `mgmtNic` (192.168.0.228) to your real interface names (`ip -o link`), confirm
   which physical port is which, and confirm the **gateway/DNS** (assumed
   `192.168.0.1`).
-- **Username / password / SSH keys** in `modules/users.nix` (default user is
-  `nas` with password `changeme` — change it!). If you rename the user, also
-  update the `username` let-binding in `modules/desktop.nix` (greetd auto-login).
+- **Set a password for `nas`** — none is shipped (so there's no committed
+  credential). The ISO installer runs `passwd nas` for you; on a manual install
+  run `passwd nas` after first boot. Until then, auto-login works but `sudo`
+  won't. If you rename the user, also update the `username` let-binding in
+  `modules/desktop.nix` (greetd auto-login).
+- **Reproducibility:** this repo ships `flake.nix` but the `flake.lock` pin is
+  generated separately (see "Pinning" below) — until then builds track the tip
+  of `nixos-25.11`.
 - `networking.hostId` is pre-generated (`5af23065`); keep it unique per machine.
 
 Already set for you: hostname `simplenas`, timezone `America/Los_Angeles`,
@@ -148,8 +153,9 @@ network cable (the installer downloads packages). After reboot, verify with
    ```
    If it wasn't cleanly exported, import once by hand then reboot:
    `zpool import -f divine-storm`.
-7. Set a real password (`passwd`) and bring up Tailscale:
+7. Set the `nas` password (required for sudo) and bring up Tailscale:
    ```
+   passwd nas
    sudo tailscale up --ssh
    ```
 
@@ -184,6 +190,30 @@ network cable (the installer downloads packages). After reboot, verify with
 - **A weekly upgrade broke something:** roll back (see above). The running system
   is never replaced until a new build succeeds, so a failed build is a no-op.
 - **Boot disk filled up:** `sudo nix-collect-garbage -d` then rebuild.
+
+## Pinning the build (flake.lock)
+
+For reproducible builds, pin the exact `nixpkgs` revision by committing a
+`flake.lock`. Either run it locally:
+
+```
+nix flake lock && git add flake.lock && git commit -m "Pin nixpkgs"
+```
+
+or trigger the **Update flake.lock** GitHub Action (Actions → *Update flake.lock*
+→ Run workflow), which generates and commits it for you. Without a lock, builds
+track the current tip of `nixos-25.11` (still that stable series, just not frozen).
+
+## Security notes
+
+- **No password is committed.** Set the `nas` password during install; until you
+  do, `sudo` is unavailable (auto-login to the desktop still works).
+- **Physical / BMC console.** The desktop auto-logs in as `nas`. This server
+  likely has an IPMI/BMC with remote KVM — if that's reachable on your LAN,
+  treat it like physical access: put the BMC on a trusted/isolated network and
+  give it a strong password. sudo still needs the `nas` password you set.
+- **Tailnet trust.** The firewall trusts `tailscale0`, and Tailscale SSH is
+  governed by your tailnet ACLs — tighten them if your tailnet is shared.
 
 ## Installing apps (Flatpak)
 

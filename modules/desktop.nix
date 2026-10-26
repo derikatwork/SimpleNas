@@ -34,17 +34,20 @@ in
   };
 
   # greetd: auto-login into labwc at boot; show a tiny greeter only on logout.
+  # labwc is launched with WLR_RENDERER=pixman (software rendering) so it starts
+  # on server/BMC GPUs (ASPEED/Matrox) that lack GL/EGL. On a box with a real GPU
+  # you can drop the `env WLR_RENDERER=pixman ` prefix for hardware acceleration.
   services.greetd = {
     enable = true;
     settings = {
       # Runs once at boot with no prompt -> straight into the desktop.
       initial_session = {
-        command = "labwc";
+        command = "env WLR_RENDERER=pixman labwc";
         user = username;
       };
       # If you log out, a minimal text greeter lets you log back in.
       default_session = {
-        command = "${lib.getExe pkgs.greetd.tuigreet} --time --cmd labwc";
+        command = "${lib.getExe pkgs.greetd.tuigreet} --time --cmd 'env WLR_RENDERER=pixman labwc'";
         user = "greeter";
       };
     };
