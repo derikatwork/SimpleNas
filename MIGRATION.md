@@ -41,7 +41,29 @@ Then power off and boot the **NixOS Minimal** USB.
 
 ---
 
-## 2. Identify the disks (by stable id)
+## 2. Install — the easy way (guided script)
+
+From the NixOS Minimal live environment, clone this repo and run the installer:
+
+```
+nix-shell -p git --run 'git clone https://github.com/derikatwork/SimpleNas'
+sudo ./SimpleNas/scripts/install.sh
+```
+
+`scripts/install.sh` walks you through the rest and is **pool-safe** — it lists
+disks, flags ZFS members, makes you type the boot disk's `by-id` path and confirm
+with `ERASE`, and **refuses to write to any disk that holds a pool**. It then
+partitions only that disk (BIOS layout), lays down this config, auto-fills the
+GRUB device, offers to fix the NIC names, runs `nixos-install`, and sets the
+passwords. When it finishes, **skip to "Reboot and verify" below**.
+
+Prefer to do each step yourself? Follow the manual steps below instead.
+
+---
+
+## Manual install (alternative to the script)
+
+### Identify the disks (by stable id)
 
 `sdX` names are not stable — always work by `/dev/disk/by-id`.
 
@@ -63,7 +85,7 @@ DISK=/dev/disk/by-id/ata-YOUR_BOOT_DISK   # <-- the boot disk, NOT a pool disk
 
 ---
 
-## 3. Partition & format the boot disk (BIOS layout)
+### Partition & format the boot disk (BIOS layout)
 
 This machine boots in **legacy BIOS** mode, so we use a GPT with a 1 MiB
 BIOS-boot partition for GRUB plus an ext4 root. **This erases `$DISK`.**
@@ -87,7 +109,7 @@ mount /dev/disk/by-label/nixos /mnt
 
 ---
 
-## 4. Generate the hardware config
+### Generate the hardware config
 
 Do this **before** importing the pool, so the scan only sees the boot disk and
 doesn't write `divine-storm` filesystem entries:
@@ -99,7 +121,7 @@ cp /mnt/etc/nixos/hardware-configuration.nix /tmp/hardware-configuration.nix
 
 ---
 
-## 5. Put this configuration in place
+### Put this configuration in place
 
 Replace the generated `/mnt/etc/nixos` with this repo, then drop the real
 hardware config into it:
@@ -117,7 +139,7 @@ cp /tmp/hardware-configuration.nix \
 
 ---
 
-## 6. Edit the three placeholders
+### Edit the placeholders
 
 ```
 cd /mnt/etc/nixos
@@ -138,7 +160,7 @@ Intel Xeon microcode, ZFS pool `divine-storm`, `networking.hostId`.
 
 ---
 
-## 7. (Optional) Pin nixpkgs, then validate and install
+### Pin nixpkgs (optional), validate, and install
 
 ```
 # Optional but recommended for a reproducible build:
@@ -158,7 +180,7 @@ nixos-enter --root /mnt -c 'passwd nas'
 
 ---
 
-## 8. Reboot and verify
+## Reboot and verify
 
 Remove the USB and reboot. Then:
 
@@ -182,7 +204,7 @@ sudo tailscale up --ssh               # authenticate once; then SSH over the tai
 
 ---
 
-## 9. Post-migration
+## Post-migration
 
 - **Re-enable your shares.** SMB/NFS are present but commented out in
   `modules/nas.nix`. Reuse your old TrueNAS **share names** and point them at the

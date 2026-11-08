@@ -7,6 +7,7 @@ adds a lightweight labwc (Wayland) desktop plus Tailscale for remote admin.
 
 ➡️ **Installing/migrating?** Follow **[`MIGRATION.md`](./MIGRATION.md)** — a
 step-by-step migration from TrueNAS SCALE using the official **NixOS Minimal** ISO.
+The fastest path is the pool-safe guided installer, **`scripts/install.sh`**.
 
 ## What's in the build
 
@@ -32,6 +33,7 @@ step-by-step migration from TrueNAS SCALE using the official **NixOS Minimal** I
 ```
 flake.nix                              # inputs + nixosConfigurations.simplenas
 MIGRATION.md                           # TrueNAS SCALE -> NixOS migration guide
+scripts/install.sh                     # pool-safe guided installer (run from NixOS Minimal)
 .github/workflows/flake-check.yml      # CI: `nix flake check` on push/PR
 hosts/simplenas/
   configuration.nix                    # hostname, hostId, CPU microcode, locale
