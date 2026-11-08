@@ -23,8 +23,8 @@ in
     # session). The account therefore starts with NO valid password: greetd
     # auto-login still works, but sudo won't until you set one.
     #
-    # Set it during install (the ISO installer runs `passwd nas` for you) or after
-    # first boot:  passwd nas
+    # Set it during install (`nixos-enter --root /mnt -c 'passwd nas'`, see
+    # MIGRATION.md) or after first boot:  passwd nas
     #
     # Better for production: point at a hashed password file (never commit the
     # hash itself), e.g.:

@@ -22,22 +22,6 @@
             ./hosts/simplenas/configuration.nix
           ];
         };
-
-        # A bootable live ISO that carries this repo and a guided installer.
-        installer = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = { inherit inputs; };
-          modules = [
-            ./iso/configuration.nix
-          ];
-        };
-      };
-
-      # Convenience build targets:
-      #   nix build .#iso   ->  result/iso/simplenas-installer.iso
-      packages.${system} = {
-        iso = self.nixosConfigurations.installer.config.system.build.isoImage;
-        default = self.nixosConfigurations.installer.config.system.build.isoImage;
       };
     };
 }
