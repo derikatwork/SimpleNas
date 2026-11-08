@@ -1,0 +1,54 @@
+name: Flake check
+
+# Lightweight, build-free validation of the NixOS config: evaluates and
+# type-checks every module/option via `nix flake check`.
+#
+# Why the dummy-hardware step: hosts/simplenas/hardware-configuration.nix is an
+# intentional guardrail that defines NO root filesystem, so the config does not
+# evaluate until it's regenerated on real hardware (see MIGRATION.md). For CI we
+# drop in a throwaway hardware file (with a dummy root FS) — never committed — so
+# `nix flake check` can evaluate the actual simplenas configuration.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+concurrency:
+  group: flake-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Nix (flakes enabled)
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Inject CI-only dummy hardware config (not committed)
+        run: |
+          cat > hosts/simplenas/hardware-configuration.nix <<'EOF'
+          { config, lib, pkgs, modulesPath, ... }:
+          {
+            imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
+            boot.initrd.availableKernelModules = [ ];
+            boot.kernelModules = [ ];
+            swapDevices = [ ];
+            nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+            hardware.enableRedistributableFirmware = lib.mkDefault true;
+            # CI-only: a dummy root filesystem so the config evaluates with no real disks.
+            fileSystems."/" = { device = "/dev/disk/by-label/nixos"; fsType = "ext4"; };
+          }
+          EOF
+
+      - name: nix flake check
+        run: nix flake check --no-build -L

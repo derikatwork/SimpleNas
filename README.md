@@ -32,6 +32,7 @@ step-by-step migration from TrueNAS SCALE using the official **NixOS Minimal** I
 ```
 flake.nix                              # inputs + nixosConfigurations.simplenas
 MIGRATION.md                           # TrueNAS SCALE -> NixOS migration guide
+.github/workflows/flake-check.yml      # CI: `nix flake check` on push/PR
 hosts/simplenas/
   configuration.nix                    # hostname, hostId, CPU microcode, locale
   hardware-configuration.nix           # ⚠ PLACEHOLDER — regenerate on target
